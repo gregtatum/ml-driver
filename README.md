@@ -47,3 +47,10 @@ Each helper returns a Python dict mirroring the structured data returned from Fi
 ### Examples
 
 The `examples/` directory contains standalone scripts for the demo flows showcased in `script.py`—use them as starting points for new experiments.
+
+Run them after installing the package (e.g., `pip install -e .`), or point Python at the local sources:
+
+```bash
+PYTHONPATH=src python examples/summarize_article.py
+PYTHONPATH=src python examples/translate_article.py
+```
