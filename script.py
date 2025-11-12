@@ -83,6 +83,9 @@ class FirefoxInference:
         prefs = {
             "browser.ml.enable": True,
             "browser.ml.logLevel": "All",
+            "browser.translations.enable": True,
+            "browser.translations.logLevel": "All",
+            "browser.translations.automaticallyPopup": False,
         }
         if ml_prefs:
             prefs.update(ml_prefs)
@@ -159,6 +162,36 @@ class FirefoxInference:
             "destroy_ml_engine", engine_id, {"shutdown": shutdown}
         )
 
+    def create_translations_session(self, language_pair: Dict[str, str]) -> Dict[str, Any]:
+        """
+        Initialize a translations engine for a given language pair.
+        """
+        return self._run_page_extractor(
+            "create_translations_session", {"languagePair": language_pair}
+        )
+
+    def run_translations_session(
+        self, session_id: str, *, text: str, is_html: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Translate arbitrary text (plain or HTML) with an existing session.
+        """
+        request = {"text": text, "isHTML": is_html}
+        return self._run_page_extractor(
+            "run_translations_session", session_id, request
+        )
+
+    def destroy_translations_session(
+        self, session_id: str, discard_translations: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Tear down the translations engine session and release its resources.
+        """
+        options = {"discardTranslations": discard_translations}
+        return self._run_page_extractor(
+            "destroy_translations_session", session_id, options
+        )
+
     def quit(self):
         """
         Exit Firefox at the end of a session.
@@ -198,6 +231,27 @@ def main() -> None:
         # sound effects.
 
         firefox_inference.destroy_ml_engine(engine_id)
+
+        es_url = "https://es.wikipedia.org/wiki/Money_(canci%C3%B3n_de_Pink_Floyd)"
+        spanish_content = firefox_inference.get_reader_mode_content(
+            es_url, force=True
+        )
+        assert spanish_content, "Unable to load Spanish article excerpt"
+        spanish_excerpt = spanish_content[:500]
+
+        translation_session = firefox_inference.create_translations_session(
+            {"sourceLanguage": "es", "targetLanguage": "en"}
+        )
+        translations_session_id = translation_session["sessionId"]
+        try:
+            translation = firefox_inference.run_translations_session(
+                translations_session_id, text=spanish_excerpt
+            )
+            print("Translated excerpt:", translation["targetText"])
+        finally:
+            firefox_inference.destroy_translations_session(
+                translations_session_id
+            )
     finally:
         firefox_inference.quit()
 
