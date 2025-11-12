@@ -172,17 +172,24 @@ def main() -> None:
 
         engine_options = {
             "taskName": "summarization",
-            "modelId": "test-echo",
+            "modelId": "mozilla/text_summarization",
             "modelRevision": "main",
         }
         engine = firefox_inference.create_ml_engine(engine_options)
         engine_id = engine["engineId"]
         logger.info(f"Created engine {engine_id}")
 
-        inference = firefox_inference.run_ml_engine(engine_id, args=[page_text])
-        summarized_text = inference["entries"]["output"][0]
+        inference = firefox_inference.run_ml_engine(
+            engine_id, args=[page_text], options={"max_new_tokens": 1000}
+        )
+        summarized_text = inference["entries"][0]["summary_text"]
 
         print("Summarized text:", summarized_text)
+        # Summarized text: "Money" is a song by Pink Floyd from their eighth studio
+        # album The Dark Side of the Moon (1973) It was released as a single, becoming
+        # the band's first hit in the United States. Distinctive elements of the song
+        # include its unusual 74 time signature, and the tape loop of money-related
+        # sound effects.
 
         firefox_inference.destroy_ml_engine(engine_id)
     finally:
