@@ -1,22 +1,24 @@
 ## Firefox Inference Playground
 
-This repo wires a local Firefox build to a Selenium-controlled harness so we can:
+`firefox-inference` wires a local Firefox build to a Selenium-controlled harness so you can:
 
 - Run privileged `PageExtractor` APIs (reader mode, headless extraction, pagination info, etc.).
 - Spin up Firefox’s ML pipelines (`createEngine`/`run`) from Python and exercise inference tasks.
 
-All of the orchestration happens in `script.py`, which loads `runner.js` into the chrome context and forwards commands to Firefox window actors.
+All of the orchestration lives in the `FirefoxInference` class, which loads a bundled `runner.js` into the chrome context and forwards commands to Firefox window actors.
 
-### Prerequisites
+### Installation
 
-- Python 3.13
+```bash
+pip install firefox-inference
+```
 
-### Setup
+Running from source? Create a venv and install the local package:
 
 ```bash
 python3.13 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ### Running the demo script
@@ -41,3 +43,7 @@ Instantiate `FirefoxInference` (optionally overriding `ml_prefs` or the Firefox 
 - `create_translations_session`, `run_translations_session`, `destroy_translations_session`
 
 Each helper returns a Python dict mirroring the structured data returned from Firefox’s JS actors, so you can compose new workflows or plug in real ML models/tasks.
+
+### Examples
+
+The `examples/` directory contains standalone scripts for the demo flows showcased in `script.py`—use them as starting points for new experiments.
