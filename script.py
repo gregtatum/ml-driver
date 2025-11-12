@@ -4,7 +4,7 @@ Run an automated Firefox for Machine Learning tasks and evaluations.
 
 from pathlib import Path
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from selenium import webdriver
 import logging
 
@@ -24,9 +24,12 @@ class FirefoxInference:
         headless: bool = False,
         firefox_bin: Optional[Path] = None,
         log_firefox: bool = False,
+        ml_prefs: Optional[Dict[str, Any]] = None,
     ) -> None:
 
-        self.driver = FirefoxInference.setup_driver(headless, firefox_bin, log_firefox)
+        self.driver = FirefoxInference.setup_driver(
+            headless, firefox_bin, log_firefox, ml_prefs
+        )
 
         with Path("runner.js").open() as path:
             self.runner_js = path.read()
@@ -53,7 +56,10 @@ class FirefoxInference:
 
     @staticmethod
     def setup_driver(
-        headless: bool, firefox_bin: Optional[Path], log_firefox: bool
+        headless: bool,
+        firefox_bin: Optional[Path],
+        log_firefox: bool,
+        ml_prefs: Optional[Dict[str, Any]] = None,
     ) -> webdriver.Firefox:
         options = webdriver.FirefoxOptions()
         options.add_argument("-remote-allow-system-access")
@@ -71,6 +77,16 @@ class FirefoxInference:
             service = webdriver.FirefoxService(
                 log_output=subprocess.STDOUT, service_args=["--log-no-truncate"]
             )
+
+        prefs = {
+            "browser.ml.enable": True,
+            "browser.ml.logLevel": "All",
+        }
+        if ml_prefs:
+            prefs.update(ml_prefs)
+
+        for pref, value in prefs.items():
+            options.set_preference(pref, value)
 
         return webdriver.Firefox(options=options, service=service)
 
@@ -110,6 +126,37 @@ class FirefoxInference:
         """
         return self._run_page_extractor("get_headless_page_text", url, options or {})
 
+    def create_ml_engine(self, options: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Initialize an ML engine using EngineProcess.createEngine.
+        """
+        return self._run_page_extractor("create_ml_engine", options)
+
+    def run_ml_engine(
+        self,
+        engine_id: str,
+        *,
+        args: List[Any],
+        options: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run inference on an existing engine.
+        """
+        request = {"args": args}
+        if options:
+            request["options"] = options
+        return self._run_page_extractor("run_ml_engine", engine_id, request)
+
+    def destroy_ml_engine(
+        self, engine_id: str, shutdown: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Terminate the underlying ML engine process.
+        """
+        return self._run_page_extractor(
+            "destroy_ml_engine", engine_id, {"shutdown": shutdown}
+        )
+
     def quit(self):
         """
         Exit Firefox at the end of a session.
@@ -119,9 +166,27 @@ class FirefoxInference:
 
 def main() -> None:
     firefox_inference = FirefoxInference(headless=True, log_firefox=False)
-    url = "https://arstechnica.com/culture/2025/11/nintendo-drops-official-trailer-for-super-mario-galaxy-movie/"
-    page_text = firefox_inference.get_reader_mode_content(url)
-    print(page_text)
+    try:
+        url = "https://en.wikipedia.org/wiki/Money_(Pink_Floyd_song)"
+        page_text = firefox_inference.get_reader_mode_content(url)
+
+        engine_options = {
+            "taskName": "summarization",
+            "modelId": "test-echo",
+            "modelRevision": "main",
+        }
+        engine = firefox_inference.create_ml_engine(engine_options)
+        engine_id = engine["engineId"]
+        logger.info(f"Created engine {engine_id}")
+
+        inference = firefox_inference.run_ml_engine(engine_id, args=[page_text])
+        summarized_text = inference["entries"]["output"][0]
+
+        print("Summarized text:", summarized_text)
+
+        firefox_inference.destroy_ml_engine(engine_id)
+    finally:
+        firefox_inference.quit()
 
 
 if __name__ == "__main__":
