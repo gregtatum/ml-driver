@@ -4,6 +4,7 @@ Run an automated Firefox for Machine Learning tasks and evaluations.
 
 from pathlib import Path
 import subprocess
+import time
 from typing import Any, Dict, List, Optional
 from selenium import webdriver
 import logging
@@ -52,6 +53,7 @@ class FirefoxInference:
     def _extract_after_navigation(self, url: str, command: str, *args: Any) -> Any:
         logger.info(f"Loading page for {command} -> {url}")
         self.driver.get(url)
+        time.sleep(1)
         return self._run_page_extractor(command, *args)
 
     @staticmethod
@@ -169,6 +171,10 @@ def main() -> None:
     try:
         url = "https://en.wikipedia.org/wiki/Money_(Pink_Floyd_song)"
         page_text = firefox_inference.get_reader_mode_content(url)
+        if not page_text:
+            page_text = firefox_inference.get_page_text(url)
+
+        assert page_text, "Unable to find page text for that url"
 
         engine_options = {
             "taskName": "summarization",
