@@ -14,12 +14,12 @@ def parse_args() -> argparse.Namespace:
     )
   )
   parser.add_argument(
-    "--source-language",
+    "--source",
     default="en",
     help="BCP-47 language tag for the input text (default: en)",
   )
   parser.add_argument(
-    "--target-language",
+    "--target",
     default="es",
     help="BCP-47 language tag for the translated output (default: es)",
   )
@@ -38,16 +38,13 @@ def main() -> None:
 
   try:
     session = firefox.create_translations_session(
-      {
-        "sourceLanguage": args.source_language,
-        "targetLanguage": args.target_language,
-      }
+      {"sourceLanguage": args.source, "targetLanguage": args.target}
     )
     session_id = session["sessionId"]
 
     print(
       "Type text to translate (blank line, EOF, or 'exit'/'quit' to stop).\n"
-      f"Translating {args.source_language} → {args.target_language}."
+      f"Translating {args.source} → {args.target}."
     )
 
     while True:
