@@ -55,4 +55,7 @@ Run them after installing the package (e.g., `pip install -e .`), or point Pytho
 ```bash
 PYTHONPATH=src python examples/summarize_article.py
 PYTHONPATH=src python examples/translate_article.py
+PYTHONPATH=src python examples/interactive_translator.py --source-language en --target-language es
 ```
+
+The interactive CLI keeps a translations session open and lets you type sentences until you enter `exit`, `quit`, or an empty line. Use the `--source-language`/`--target-language` flags to flip directions as needed.
