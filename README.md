@@ -2,6 +2,8 @@
 
 `firefox-inference` wires a local Firefox build to a Selenium-controlled harness so you can:
 
+> **Warning:** this is experimental demonstration code only. It will probably break in the future as it's accessing Firefox internals, and the implementation is just quick prototype code.
+
 - Run privileged `PageExtractor` APIs (reader mode, headless extraction, pagination info, etc.).
 - Spin up Firefox’s ML pipelines (`createEngine`/`run`) from Python and exercise inference tasks.
 
