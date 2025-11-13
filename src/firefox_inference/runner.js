@@ -128,8 +128,29 @@ function normalizeLanguagePair(pair = {}) {
   };
 }
 
-const translationSessions = new Map();
-let nextTranslationSessionId = 1;
+function getGlobalState() {
+  const chromeWindow = gBrowser?.ownerGlobal;
+  if (!chromeWindow) {
+    throw new Error("Unable to locate the chrome window for global state");
+  }
+
+  if (!chromeWindow.__firefoxInferenceState) {
+    chromeWindow.__firefoxInferenceState = {
+      translationSessions: new Map(),
+      nextTranslationSessionId: 1,
+    };
+  }
+
+  return chromeWindow.__firefoxInferenceState;
+}
+
+const translationSessions = getGlobalState().translationSessions;
+
+function takeNextTranslationSessionId() {
+  const state = getGlobalState();
+  const sessionId = `translation-session-${state.nextTranslationSessionId++}`;
+  return sessionId;
+}
 
 async function createTranslationsSession(options = {}) {
   const languagePair = normalizeLanguagePair(options.languagePair || options);
@@ -138,7 +159,7 @@ async function createTranslationsSession(options = {}) {
     throw new Error("Failed to acquire a translations port from Firefox");
   }
 
-  const sessionId = `translation-session-${nextTranslationSessionId++}`;
+  const sessionId = takeNextTranslationSessionId();
   const session = {
     id: sessionId,
     languagePair,
@@ -259,8 +280,8 @@ async function runTranslationsSession(sessionId, request = {}) {
     typeof request.text === "string"
       ? request.text
       : typeof request.sourceText === "string"
-        ? request.sourceText
-        : null;
+      ? request.sourceText
+      : null;
 
   if (text === null) {
     throw new Error("Translations request missing text/sourceText field");
