@@ -64,25 +64,19 @@ class FirefoxInference:
       - "/absolute/path/file.html" -> "file:///absolute/path/file.html"
       - "relative/path/file.html" -> "file:///absolute/path/to/file.html"
     """
-    # If it's already a URL (http, https, or file), return as-is
     parsed = urlparse(url_or_path)
     if parsed.scheme in ("http", "https", "file"):
-      # For file:// URLs, ensure the path is absolute
       if parsed.scheme == "file":
         if parsed.path:
-          # file:// URLs should have absolute paths
           return url_or_path
         else:
-          # Handle file:// without path (shouldn't happen, but be safe)
           return url_or_path
       return url_or_path
     
-    # It's a local file path - convert to absolute path and then to file:// URL
     file_path = Path(url_or_path).resolve()
     if not file_path.exists():
       raise FileNotFoundError(f"Local file not found: {file_path}")
     
-    # Convert to file:// URL (use three slashes for absolute paths)
     return f"file://{file_path}"
 
   def _run_page_extractor(self, command: str, *args: Any) -> Any:
@@ -91,7 +85,6 @@ class FirefoxInference:
         response = self.driver.execute_async_script(self.runner_js, command, *args)
     except Exception as e:
       error_msg = str(e)
-      # Check for the specific error indicating missing Firefox ML features
       if "PageExtractorParent" in error_msg or "Failed to load resource://gre/actors" in error_msg:
         raise RuntimeError(
           f"{command} failed: This requires a custom Firefox build with ML features enabled. "
