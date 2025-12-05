@@ -1,3 +1,4 @@
+# I sometimes symlink Firefox here, so don't check it in.
 firefox
 __pycache__/
 *.py[cod]
