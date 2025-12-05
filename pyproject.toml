@@ -9,7 +9,7 @@ description = "Drive Firefox's ML and translations engines from Python via Selen
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MPL-2.0" }
-authors = [{ name = "Greg", email = "" }]
+authors = [{ name = "Greg", email = "foo@bar.com" }]
 dependencies = [
   "selenium>=4.0",
 ]
