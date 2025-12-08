@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import time
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from selenium import webdriver
 
@@ -47,9 +48,51 @@ class FirefoxInference:
     )
     self.runner_js = _load_runner_js()
 
+  @staticmethod
+  def _normalize_url(url_or_path: str) -> str:
+    """Convert local file paths to file:// URLs, or return URLs as-is.
+    
+    Args:
+      url_or_path: Either a URL (http://, https://, file://) or a local file path.
+    
+    Returns:
+      A URL string that can be used with driver.get().
+      
+    Examples:
+      - "https://example.com" -> "https://example.com"
+      - "file:///path/to/file.html" -> "file:///path/to/file.html"
+      - "/absolute/path/file.html" -> "file:///absolute/path/file.html"
+      - "relative/path/file.html" -> "file:///absolute/path/to/file.html"
+    """
+    parsed = urlparse(url_or_path)
+    if parsed.scheme in ("http", "https", "file"):
+      if parsed.scheme == "file":
+        if parsed.path:
+          return url_or_path
+        else:
+          return url_or_path
+      return url_or_path
+    
+    file_path = Path(url_or_path).resolve()
+    if not file_path.exists():
+      raise FileNotFoundError(f"Local file not found: {file_path}")
+    
+    return f"file://{file_path}"
+
   def _run_page_extractor(self, command: str, *args: Any) -> Any:
-    with self.driver.context(self.driver.CONTEXT_CHROME):
-      response = self.driver.execute_async_script(self.runner_js, command, *args)
+    try:
+      with self.driver.context(self.driver.CONTEXT_CHROME):
+        response = self.driver.execute_async_script(self.runner_js, command, *args)
+    except Exception as e:
+      error_msg = str(e)
+      if "PageExtractorParent" in error_msg or "Failed to load resource://gre/actors" in error_msg:
+        raise RuntimeError(
+          f"{command} failed: This requires a custom Firefox build with ML features enabled. "
+          "Regular Firefox installations do not include PageExtractorParent and other ML modules. "
+          "Please use a Firefox build compiled with ML features enabled, or specify the path "
+          "to such a build using the firefox_bin parameter."
+        ) from e
+      raise
 
     response_name = response and response.get("name")
     if response_name == "success":
@@ -58,13 +101,22 @@ class FirefoxInference:
     if response_name == "error":
       error_details = response.get("error") or {}
       message = error_details.get("message") or response.get("error")
+      # Check if the error is about missing PageExtractor
+      if "PageExtractor" in str(message) or "PageExtractorParent" in str(message):
+        raise RuntimeError(
+          f"{command} failed: This requires a custom Firefox build with ML features enabled. "
+          "Regular Firefox installations do not include PageExtractorParent and other ML modules. "
+          "Please use a Firefox build compiled with ML features enabled, or specify the path "
+          f"to such a build using the firefox_bin parameter. Original error: {message}"
+        )
       raise RuntimeError(f"{command} failed: {message}")
 
     raise RuntimeError(f"{command} failed with no response: {response}")
 
   def _extract_after_navigation(self, url: str, command: str, *args: Any) -> Any:
-    logger.info("Loading page for %s -> %s", command, url)
-    self.driver.get(url)
+    normalized_url = self._normalize_url(url)
+    logger.info("Loading page for %s -> %s", command, normalized_url)
+    self.driver.get(normalized_url)
     time.sleep(1)
     return self._run_page_extractor(command, *args)
 
@@ -130,7 +182,8 @@ class FirefoxInference:
     self, url: str, options: Optional[Dict[str, Any]] = None
   ) -> Dict[str, Any]:
     """Use the headless PageExtractor API to load a hidden page."""
-    return self._run_page_extractor("get_headless_page_text", url, options or {})
+    normalized_url = self._normalize_url(url)
+    return self._run_page_extractor("get_headless_page_text", normalized_url, options or {})
 
   def create_ml_engine(self, options: Dict[str, Any]) -> Dict[str, Any]:
     """Initialize an ML engine using EngineProcess.createEngine."""
